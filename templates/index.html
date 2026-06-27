@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image-2 图像生成器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #a78bfa, #6d28d9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .panel {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 700px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .input-group { margin-bottom: 20px; }
+
+        /* 模式切换 */
+        .mode-selector {
+            display: flex;
+            background: #12121f;
+            border: 1px solid #3a3a5c;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #8a8aaa;
+            background: transparent;
+            border: none;
+            transition: all 0.25s;
+            position: relative;
+        }
+
+        .mode-btn:not(:last-child) {
+            border-right: 1px solid #2a2a4a;
+        }
+
+        .mode-btn:hover {
+            color: #c0c0e0;
+            background: #1a1a30;
+        }
+
+        .mode-btn.active {
+            color: #c084fc;
+            background: #1e1a30;
+        }
+
+        .mode-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            width: 60%;
+            height: 2px;
+            background: #a78bfa;
+            border-radius: 1px;
+        }
+
+        .mode-btn .mode-icon {
+            font-size: 20px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .mode-btn .mode-label {
+            font-size: 13px;
+            display: block;
+        }
+
+        .mode-btn .mode-desc {
+            font-size: 11px;
+            color: #5a5a7a;
+            display: block;
+            margin-top: 2px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0c0;
+            font-weight: 500;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 14px;
+            background: #12121f;
+            border: 1px solid #3a3a5c;
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 16px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #a78bfa;
+        }
+
+        /* 上传区域 */
+        .upload-zone {
+            border: 2px dashed #3a3a5c;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+            background: #12121f;
+            margin-bottom: 12px;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #a78bfa;
+            background: #1a1a30;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .upload-zone .upload-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone .upload-text {
+            color: #8a8aaa;
+            font-size: 14px;
+        }
+
+        .upload-zone .upload-text span {
+            color: #a78bfa;
+            text-decoration: underline;
+        }
+
+        /* Mask 画布绘制区 */
+        .draw-container {
+            background: #12121f;
+            border: 1px solid #3a3a5c;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .draw-canvas-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            background: #0a0a14;
+            cursor: crosshair;
+        }
+
+        .draw-bg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        #maskCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .draw-controls {
+            padding: 12px 16px;
+            border-top: 1px solid #2a2a4a;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .draw-control-left {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .draw-size-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .draw-size-control label {
+            color: #a0a0c0;
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .draw-size-control input[type="range"] {
+            width: 100px;
+            accent-color: #a78bfa;
+            cursor: pointer;
+        }
+
+        .draw-size-control span {
+            color: #c084fc;
+            font-size: 13px;
+            min-width: 32px;
+            font-weight: 600;
+        }
+
+        .draw-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .draw-btn {
+            background: #2a2a4a;
+            color: #e0e0e0;
+            border: 1px solid #3a3a5c;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .draw-btn:hover {
+            background: #3a3a5c;
+        }
+
+        .draw-btn.active {
+            background: #5c3a7a;
+            border-color: #a78bfa;
+        }
+
+        .draw-btn-danger {
+            color: #f87171;
+        }
+
+        .draw-btn-danger:hover {
+            background: #3a1a1a;
+            border-color: #5a2a2a;
+        }
+
+        .draw-mode-indicator {
+            font-size: 13px;
+            color: #a0a0c0;
+            padding: 4px 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+        }
+
+        /* 缩略图预览 */
+        .preview-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #3a3a5c;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background: rgba(220, 50, 50, 0.85);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 14px;
+            line-height: 20px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .preview-item .remove-btn:hover {
+            background: rgba(255, 60, 60, 1);
+        }
+
+        .preview-count {
+            color: #8a8aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        button.generate-btn {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button.generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+
+        button.generate-btn:disabled {
+            background: #3a3a5c;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .result-area {
+            margin-top: 24px;
+            min-height: 300px;
+            border: 2px dashed #3a3a5c;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #12121f;
+            overflow: hidden;
+        }
+
+        .result-area img {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 8px;
+        }
+
+        .placeholder { color: #5a5a7a; font-size: 16px; }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 16px;
+            color: #a78bfa;
+        }
+
+        .loading.show { display: block; }
+
+        .retry-status {
+            display: none;
+            margin-top: 12px;
+            padding: 14px;
+            background: #1e1a2e;
+            border: 1px solid #3a2a5c;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .retry-status.show { display: block; }
+
+        .retry-count {
+            color: #c084fc;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .retry-errors {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .retry-error-item {
+            color: #f87171;
+            background: #2a1a1a;
+            border: 1px solid #3a2222;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .retry-error-item .attempt-num {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .error {
+            color: #f87171;
+            background: #2a1a1a;
+            border: 1px solid #5a2a2a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .success {
+            color: #4ade80;
+            background: #1a2a1a;
+            border: 1px solid #2a5a2a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image-2 图像生成器</h1>
+
+    <div class="panel">
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="generate" id="modeGenerate">
+                <span class="mode-icon">🖼️</span>
+                <span class="mode-label">生图模式</span>
+                <span class="mode-desc">多张参考图一起上传</span>
+            </button>
+            <button class="mode-btn" data-mode="edit" id="modeEdit">
+                <span class="mode-icon">🎨</span>
+                <span class="mode-label">改图模式</span>
+                <span class="mode-desc">1张图 + 绘制遮罩</span>
+            </button>
+        </div>
+
+        <div class="input-group">
+            <label>参考图片 <span id="refImageHint">（可多张，全部上传）</span>：</label>
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+                <div class="upload-icon">+</div>
+                <div class="upload-text">拖拽图片到此处，或 <span>点击选择</span></div>
+            </div>
+            <div class="preview-grid" id="previewGrid"></div>
+            <div class="preview-count" id="previewCount"></div>
+        </div>
+
+        <div class="input-group" id="maskDrawSection" style="display:none">
+            <label>🎨 绘制 Mask（在图上涂白色 = 要修改的区域，透明 = 保留原样）：</label>
+            <div class="draw-container">
+                <div class="draw-canvas-wrapper" id="drawCanvasWrapper">
+                    <img id="drawBgImage" class="draw-bg">
+                    <canvas id="maskCanvas"></canvas>
+                </div>
+                <div class="draw-controls">
+                    <div class="draw-control-left">
+                        <div class="draw-size-control">
+                            <label>笔刷</label>
+                            <input type="range" id="brushSizeRange" min="3" max="80" value="20">
+                            <span id="brushSizeLabel">20px</span>
+                        </div>
+                        <div class="draw-buttons">
+                            <button id="eraserToggle" class="draw-btn">🧹 橡皮</button>
+                            <button id="clearDrawing" class="draw-btn draw-btn-danger">🗑 清除</button>
+                        </div>
+                    </div>
+                    <div class="draw-mode-indicator" id="drawModeIndicator">✏️ 绘制模式</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="imagePrompt">图像描述：</label>
+            <textarea id="imagePrompt" rows="4" placeholder="有参考图=编辑模式，无参考图=纯生成。上传遮罩可指定编辑区域。例如：把背景换成海滩"></textarea>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="generateImage()">生成图像</button>
+
+        <div class="loading" id="imageLoading">正在生成图像，请稍候...</div>
+
+        <div class="retry-status" id="retryStatus">
+            <div class="retry-count" id="retryCount"></div>
+            <div class="retry-errors" id="retryErrors"></div>
+        </div>
+
+        <div id="imageResult" class="result-area">
+            <p class="placeholder">生成的图像将显示在这里</p>
+        </div>
+
+        <div id="imageError" class="error" style="display: none;"></div>
+        <div id="imageSuccess" class="success" style="display: none;"></div>
+    </div>
+
+    <script>
+        const selectedFiles = [];
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+        const previewGrid = document.getElementById('previewGrid');
+        const previewCount = document.getElementById('previewCount');
+
+        // —— Mask 画布状态 ——
+        let isDrawing = false;
+        let isEraser = false;
+        let hasDrawnMask = false;
+        let lastX = 0, lastY = 0;
+        let maskCanvas = null;
+        let maskCtx = null;
+        let canvasNaturalW = 1, canvasNaturalH = 1;
+        const drawBgImage = document.getElementById('drawBgImage');
+        const drawCanvasWrapper = document.getElementById('drawCanvasWrapper');
+
+        // 点击上传区触发文件选择
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // 文件选择变化
+        fileInput.addEventListener('change', e => {
+            addFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        // 拖拽支持
+        uploadZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            addFiles(e.dataTransfer.files);
+        });
+
+        // —— Canvas 遮罩绘制 ——
+        function setupMaskCanvas(imageFile) {
+            const section = document.getElementById('maskDrawSection');
+            const canvas = document.getElementById('maskCanvas');
+            const img = new Image();
+
+            img.onload = function() {
+                canvasNaturalW = img.naturalWidth;
+                canvasNaturalH = img.naturalHeight;
+                canvas.width = canvasNaturalW;
+                canvas.height = canvasNaturalH;
+
+                drawBgImage.src = img.src;
+
+                maskCanvas = canvas;
+                maskCtx = canvas.getContext('2d');
+                maskCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                isEraser = false;
+                hasDrawnMask = false;
+                document.getElementById('eraserToggle').classList.remove('active');
+                document.getElementById('drawModeIndicator').textContent = '✏️ 绘制模式';
+
+                section.style.display = 'block';
+            };
+
+            img.src = URL.createObjectURL(imageFile);
+        }
+
+        function teardownMaskCanvas() {
+            const section = document.getElementById('maskDrawSection');
+            section.style.display = 'none';
+            drawBgImage.src = '';
+            const canvas = document.getElementById('maskCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            maskCanvas = null;
+            maskCtx = null;
+            hasDrawnMask = false;
+        }
+
+        // 画布鼠标事件
+        document.addEventListener('mousedown', e => {
+            const canvas = document.getElementById('maskCanvas');
+            if (!canvas || e.target !== canvas) return;
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            lastX = x; lastY = y;
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!isDrawing || !maskCtx) return;
+            const canvas = document.getElementById('maskCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const size = parseInt(document.getElementById('brushSizeRange').value);
+
+            maskCtx.beginPath();
+            maskCtx.moveTo(lastX, lastY);
+            maskCtx.lineTo(x, y);
+            maskCtx.lineWidth = size;
+            maskCtx.lineCap = 'round';
+            maskCtx.lineJoin = 'round';
+
+            if (isEraser) {
+                maskCtx.globalCompositeOperation = 'destination-out';
+                maskCtx.strokeStyle = 'rgba(255,255,255,1)';
+            } else {
+                maskCtx.globalCompositeOperation = 'source-over';
+                maskCtx.strokeStyle = '#FFFFFF';
+            }
+            maskCtx.stroke();
+
+            lastX = x; lastY = y;
+            hasDrawnMask = true;
+        });
+
+        document.addEventListener('mouseup', () => { isDrawing = false; });
+        document.addEventListener('mouseleave', () => { isDrawing = false; });
+
+        // —— 当前模式 ——
+        let currentMode = 'generate'; // 'generate' | 'edit'
+        const refImageHint = document.getElementById('refImageHint');
+        const modeGenerate = document.getElementById('modeGenerate');
+        const modeEdit = document.getElementById('modeEdit');
+
+        function switchMode(mode) {
+            currentMode = mode;
+            modeGenerate.classList.toggle('active', mode === 'generate');
+            modeEdit.classList.toggle('active', mode === 'edit');
+
+            if (mode === 'generate') {
+                refImageHint.textContent = '（可多张，全部上传）';
+                // 关闭 mask 画布
+                teardownMaskCanvas();
+                // 清空旧引用图让用户重新选？不清空，但允许多张
+                // 多张限制由 addFiles 的 maxFiles 控制
+            } else {
+                refImageHint.textContent = '（改图模式仅1张）';
+                // 如果超过1张，截断
+                while (selectedFiles.length > 1) {
+                    selectedFiles.pop();
+                }
+                renderPreviews();
+                // 如果有1张，启动画布
+                if (selectedFiles.length === 1) {
+                    setupMaskCanvas(selectedFiles[0]);
+                }
+            }
+        }
+
+        modeGenerate.addEventListener('click', () => switchMode('generate'));
+        modeEdit.addEventListener('click', () => switchMode('edit'));
+        document.getElementById('brushSizeRange').addEventListener('input', e => {
+            document.getElementById('brushSizeLabel').textContent = e.target.value + 'px';
+        });
+
+        // 橡皮切换
+        document.getElementById('eraserToggle').addEventListener('click', function() {
+            isEraser = !isEraser;
+            this.classList.toggle('active', isEraser);
+            document.getElementById('drawModeIndicator').textContent =
+                isEraser ? '🧹 橡皮模式' : '✏️ 绘制模式';
+        });
+
+        // 清除全部
+        document.getElementById('clearDrawing').addEventListener('click', () => {
+            if (!maskCtx) return;
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            hasDrawnMask = false;
+        });
+
+        // 获取 mask blob
+        function getMaskBlob() {
+            return new Promise(resolve => {
+                if (!maskCtx || !hasDrawnMask) { resolve(null); return; }
+                maskCanvas.toBlob(blob => resolve(blob), 'image/png');
+            });
+        }
+
+        // 监听参考图变化，自动设置/销毁画布
+        let prevRefLen = 0;
+        setInterval(() => {
+            if (currentMode === 'edit' && selectedFiles.length > 0 && prevRefLen === 0) {
+                // 改图模式：新上传了参考图
+                if (!maskCanvas || maskCanvas.width === 0) {
+                    setupMaskCanvas(selectedFiles[0]);
+                }
+            } else if (selectedFiles.length === 0 && prevRefLen > 0) {
+                // 参考图被清空
+                teardownMaskCanvas();
+            }
+            prevRefLen = selectedFiles.length;
+        }, 300);
+
+        function addFiles(fileList) {
+            const maxFiles = currentMode === 'edit' ? 1 : 10;
+            for (const file of fileList) {
+                if (!file.type.startsWith('image/')) continue;
+                if (selectedFiles.length >= maxFiles) break;
+                selectedFiles.push(file);
+            }
+            renderPreviews();
+            // 改图模式自动启动画布
+            if (currentMode === 'edit' && selectedFiles.length === 1) {
+                setupMaskCanvas(selectedFiles[0]);
+            }
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderPreviews();
+            // 改图模式删了最后一张 → 销毁画布
+            if (currentMode === 'edit' && selectedFiles.length === 0) {
+                teardownMaskCanvas();
+            }
+        }
+
+        function renderPreviews() {
+            previewGrid.innerHTML = '';
+            selectedFiles.forEach((file, i) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                const btn = document.createElement('button');
+                btn.className = 'remove-btn';
+                btn.textContent = '×';
+                btn.onclick = e => { e.stopPropagation(); removeFile(i); };
+                item.appendChild(img);
+                item.appendChild(btn);
+                previewGrid.appendChild(item);
+            });
+            previewCount.textContent = selectedFiles.length > 0
+                ? `已选择 ${selectedFiles.length} 张参考图片`
+                : '';
+        }
+
+        async function doFetch(formData) {
+            const response = await fetch('/generate', {
+                method: 'POST',
+                body: formData
+            });
+            return await response.json();
+        }
+
+        async function generateImage() {
+            const prompt = document.getElementById('imagePrompt').value.trim();
+            if (!prompt) {
+                showError('请输入图像描述');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('imageLoading');
+            const result = document.getElementById('imageResult');
+            const retryStatus = document.getElementById('retryStatus');
+            const retryCountEl = document.getElementById('retryCount');
+            const retryErrorsEl = document.getElementById('retryErrors');
+
+            const MAX_RETRIES = 10;
+            const errors = [];
+
+            btn.disabled = true;
+            loading.classList.add('show');
+            hideMessages();
+            retryStatus.classList.add('show');
+            retryErrorsEl.innerHTML = '';
+            retryCountEl.textContent = '准备中...';
+            result.innerHTML = '<p class="placeholder">正在生成中...</p>';
+
+            const formData = new FormData();
+            formData.append('prompt', prompt);
+            formData.append('mode', currentMode);
+            selectedFiles.forEach(f => formData.append('images', f));
+
+            // 如果画了 mask，导出为 blob 附加
+            const maskBlob = await getMaskBlob();
+            if (maskBlob) {
+                formData.append('mask', maskBlob, 'mask.png');
+            }
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                retryCountEl.textContent = `🔄 第 ${attempt} / ${MAX_RETRIES} 次尝试...`;
+
+                try {
+                    const data = await doFetch(formData);
+
+                    if (data.success) {
+                        // 成功！
+                        result.innerHTML = `<img src="${data.image_url}" alt="生成的图像">`;
+                        if (attempt > 1) {
+                            retryCountEl.textContent = `✅ 第 ${attempt} 次尝试成功！（之前失败了 ${attempt - 1} 次）`;
+                            retryCountEl.style.color = '#4ade80';
+                        } else {
+                            retryStatus.classList.remove('show');
+                        }
+                        if (data.revised_prompt && data.revised_prompt !== prompt) {
+                            showSuccess(`优化后的提示词：${data.revised_prompt}`);
+                        }
+                        btn.disabled = false;
+                        loading.classList.remove('show');
+                        return;
+                    }
+
+                    // 非 success → 记录错误
+                    const errMsg = data.error || '未知错误';
+                    errors.push({ attempt, msg: errMsg });
+                    renderRetryErrors(retryErrorsEl, errors);
+
+                } catch (error) {
+                    // 网络异常等
+                    errors.push({ attempt, msg: `请求异常: ${error.message}` });
+                    renderRetryErrors(retryErrorsEl, errors);
+                }
+
+                // 最后一次也失败了
+                if (attempt === MAX_RETRIES) {
+                    retryCountEl.textContent = `❌ 已达最大重试次数 (${MAX_RETRIES})，全部失败`;
+                    retryCountEl.style.color = '#f87171';
+                    result.innerHTML = '<p class="placeholder">生成失败，已达最大重试次数</p>';
+                    showError(`经过 ${MAX_RETRIES} 次尝试仍然失败，请稍后再试`);
+                }
+            }
+
+            btn.disabled = false;
+            loading.classList.remove('show');
+        }
+
+        function renderRetryErrors(container, errors) {
+            container.innerHTML = errors.map(e =>
+                `<div class="retry-error-item"><span class="attempt-num">第${e.attempt}次</span>：${e.msg}</div>`
+            ).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('imageError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function showSuccess(msg) {
+            const el = document.getElementById('imageSuccess');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('imageError').style.display = 'none';
+            document.getElementById('imageSuccess').style.display = 'none';
+        }
+
+        document.getElementById('imagePrompt').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                generateImage();
+            }
+        });
+
+        document.getElementById('imagePrompt').focus();
+    </script>
+</body>
+</html>
