@@ -29,6 +29,12 @@
 - 改图模式上传参考图后自动弹出画布
 - 删除最后一张参考图时自动销毁画布
 
+### 安全修复
+- **🔒 移除硬编码 API Key** — `app.py` 改为从 `.env` 环境变量读取配置
+  - `api_key` / `base_url` 均通过 `os.getenv()` 加载
+  - 缺失 key 时启动即报错 `RuntimeError`，不再静默失败
+  - 使用 `git filter-branch` 重写历史，彻底清除 git 历史中的明文 key
+
 ### 文档
 - 新增 `ARCHITECTURE.md` — 架构设计文档
 - 新增 `docs/api.md` — API 参考
