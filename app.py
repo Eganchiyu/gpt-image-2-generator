@@ -10,9 +10,15 @@ load_dotenv()
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 3840 * 2160  # 50MB
 
+_api_key = os.getenv('OPENAI_API_KEY')
+_base_url = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+
+if not _api_key:
+    raise RuntimeError('OPENAI_API_KEY 未设置，请在 .env 文件中配置')
+
 client = OpenAI(
-    api_key="***REDACTED***",
-    base_url="https://api.rua.chat/v1"
+    api_key=_api_key,
+    base_url=_base_url
 )
 
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
